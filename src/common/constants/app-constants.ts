@@ -1,0 +1,4 @@
+export const appConstants = {
+  MAX_RETRY_ATTEMPTS: 'MAX_RETRY_ATTEMPTS',
+  DEFAULT_MAX_RETRY_ATTEMPTS: '3',
+};
