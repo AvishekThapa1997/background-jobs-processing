@@ -1,6 +1,13 @@
 import { PickType } from '@nestjs/mapped-types';
 import { IsEnum, IsNotEmpty, IsObject } from 'class-validator';
-import { JobType } from '../constants/job.enum.js';
+import { JobStatus, JobType } from '../constants/job.enum.js';
+
+export class JobDto {
+  id: number;
+  status: JobStatus;
+  type: JobType;
+  createdAt: Date;
+}
 
 export class CreateJobDto {
   @IsEnum(JobType)

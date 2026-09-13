@@ -17,7 +17,6 @@ export class AppConfigService {
     const config = await this.prismaService.config.findUnique({
       where: { key },
     });
-
     return config?.value ?? appConstants.DEFAULT_MAX_RETRY_ATTEMPTS;
   }
 }
