@@ -1,10 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
-import { appConstants } from '../../common/constants/app-constants.js';
+import { APP_CONSTANTS } from '../../common/constants/app-constants.js';
 import { Job } from 'bullmq';
 import { EmailPayload } from '../payload/email.payload.js';
 import { PrismaService } from '../../db/db.service.js';
 
-@Processor(appConstants.QUEUE_NAME.SEND_EMAIL)
+@Processor(APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL)
 export class EmailWorker extends WorkerHost {
   constructor(private readonly prismaService: PrismaService) {
     super();

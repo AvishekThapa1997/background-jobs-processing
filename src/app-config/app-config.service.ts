@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../db/db.service.js';
-import { appConstants } from '../common/constants/app-constants.js';
+import { APP_CONSTANTS } from '../common/constants/app-constants.js';
 
 @Injectable()
 export class AppConfigService {
@@ -17,6 +17,6 @@ export class AppConfigService {
     const config = await this.prismaService.config.findUnique({
       where: { key },
     });
-    return config?.value ?? appConstants.DEFAULT_MAX_RETRY_ATTEMPTS;
+    return config?.value ?? APP_CONSTANTS.DEFAULT_MAX_RETRY_ATTEMPTS;
   }
 }

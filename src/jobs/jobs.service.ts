@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { JobsOptions, Queue } from 'bullmq';
 import { AppConfigService } from '../app-config/app-config.service.js';
-import { appConstants } from '../common/constants/app-constants.js';
+import { APP_CONSTANTS } from '../common/constants/app-constants.js';
 import { PrismaService } from '../db/db.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { JobStatus, JobType } from './constants/job.enum.js';
@@ -13,15 +13,15 @@ export class JobService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly appConfigService: AppConfigService,
-    @InjectQueue(appConstants.QUEUE_NAME.SEND_EMAIL)
+    @InjectQueue(APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL)
     private readonly emailQueue: Queue,
-    @InjectQueue(appConstants.QUEUE_NAME.SEND_SMS)
+    @InjectQueue(APP_CONSTANTS.QUEUE_NAME.SEND_SMS)
     private readonly smsQueue: Queue,
   ) {}
 
   async create(createJobDto: CreateJobDto): Promise<JobDto> {
     const maxReattempts = await this.appConfigService.get(
-      appConstants.MAX_RETRY_ATTEMPTS,
+      APP_CONSTANTS.MAX_RETRY_ATTEMPTS,
     );
     const job = await this.prismaService.job.create({
       data: {
@@ -39,10 +39,10 @@ export class JobService {
     let queueName = '';
     if (job.type === JobType.SEND_SMS) {
       queue = this.smsQueue;
-      queueName = appConstants.QUEUE_NAME.SEND_SMS;
+      queueName = APP_CONSTANTS.QUEUE_NAME.SEND_SMS;
     } else if (job.type === JobType.SEND_EMAIL) {
       queue = this.emailQueue;
-      queueName = appConstants.QUEUE_NAME.SEND_EMAIL;
+      queueName = APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL;
     }
     if (queue) {
       const addedJob = await queue.add(queueName, job, jobOptions);
