@@ -9,12 +9,12 @@ export class JobDto {
   createdAt: Date;
 }
 
-export class CreateJobDto {
+export class CreateJobDto<T extends object = Record<string, unknown>> {
   @IsEnum(JobType)
   type: JobType;
 
   @IsObject()
-  payload: Record<string, unknown>;
+  payload: T;
 }
 
 export class UpdateJobDto extends PickType(CreateJobDto, ['payload']) {}

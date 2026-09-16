@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { JobsOptions, Queue } from 'bullmq';
 import { AppConfigService } from '../app-config/app-config.service.js';
 import { APP_CONSTANTS } from '../common/constants/app-constants.js';
@@ -7,9 +7,11 @@ import { PrismaService } from '../db/db.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { JobStatus, JobType } from './constants/job.enum.js';
 import { CreateJobDto, JobDto } from './dto/job.dto.js';
+import { EmailPayload } from './payload/email.payload.js';
 
 @Injectable()
 export class JobService {
+  private readonly logger = new Logger(JobService.name);
   constructor(
     private readonly prismaService: PrismaService,
     private readonly appConfigService: AppConfigService,
@@ -19,21 +21,29 @@ export class JobService {
     private readonly smsQueue: Queue,
   ) {}
 
-  async create(createJobDto: CreateJobDto): Promise<JobDto> {
+  async create(createJobDto: CreateJobDto<EmailPayload>): Promise<JobDto> {
     const maxReattempts = await this.appConfigService.get(
       APP_CONSTANTS.MAX_RETRY_ATTEMPTS,
     );
     const job = await this.prismaService.job.create({
       data: {
         type: createJobDto.type,
-        payload: createJobDto.payload as Prisma.InputJsonValue,
+        payload: {
+          ...createJobDto.payload,
+        },
         maxReattempts: Number(maxReattempts),
       },
     });
     const jobId = `job-${job.id}`;
+    const jobDelay = 2 * 60 * 1000;
     const jobOptions: JobsOptions = {
       jobId,
-      delay: 60 * 1000,
+      delay: jobDelay, // delaying for 2 mins
+      attempts: job.maxReattempts,
+      backoff: {
+        type: 'fixed',
+        delay: 2000, // retry after every 2 seconds if fails
+      },
     };
     let queue: Queue | null = null;
     let queueName = '';
@@ -45,13 +55,14 @@ export class JobService {
       queueName = APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL;
     }
     if (queue) {
-      const addedJob = await queue.add(queueName, job, jobOptions);
-      console.log('AFTER ADD:', {
-        id: addedJob.id,
-        name: addedJob.name,
-        delay: addedJob.delay,
-        timestamp: addedJob.timestamp,
-      });
+      const addedJob = await queue.add(
+        queueName,
+        createJobDto.payload,
+        jobOptions,
+      );
+      this.logger.log(
+        `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
+      );
     }
     return {
       id: job.id,

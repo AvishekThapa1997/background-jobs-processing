@@ -17,7 +17,8 @@
     "lint": "oxlint src/",
     "migrate:generate": "npx prisma migrate dev --create-only",
     "migrate:dev": "npx prisma migrate dev",
-    "prisma:client": "npx prisma generate"
+    "prisma:client": "npx prisma generate",
+    "seed:job": "node ./src/seed/seedJob.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.0",

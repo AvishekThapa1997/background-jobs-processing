@@ -13,6 +13,7 @@ import { CreateJobDto, JobDto } from './dto/job.dto.js';
 import { JobPayloadValidationPipe } from './pipe/job-payload-validation.pipe.js';
 import { AllExceptionsFilter } from '../common/filters/global-exception.filter.js';
 import { ApiResult } from '../common/types/index.js';
+import { EmailPayload } from './payload/email.payload.js';
 
 @Controller('jobs')
 export class JobsController {
@@ -21,7 +22,7 @@ export class JobsController {
   @UsePipes(JobPayloadValidationPipe)
   async create(
     @Body(JobPayloadValidationPipe)
-    createJobDto: CreateJobDto,
+    createJobDto: CreateJobDto<EmailPayload>,
   ): Promise<ApiResult<JobDto>> {
     const job = await this.jobService.create(createJobDto);
     return {
