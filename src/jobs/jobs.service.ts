@@ -34,7 +34,7 @@ export class JobService {
         maxReattempts: Number(maxReattempts),
       },
     });
-    const jobId = `job-${job.id}`;
+    const jobId = String('#' + job.id);
     const jobDelay = 2 * 60 * 1000;
     const jobOptions: JobsOptions = {
       jobId,
@@ -54,15 +54,21 @@ export class JobService {
       queue = this.emailQueue;
       queueName = APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL;
     }
+
     if (queue) {
-      const addedJob = await queue.add(
-        queueName,
-        createJobDto.payload,
-        jobOptions,
-      );
-      this.logger.log(
-        `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
-      );
+      try {
+        const addedJob = await queue.add(
+          queueName,
+          createJobDto.payload,
+          jobOptions,
+        );
+
+        this.logger.log(
+          `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
+        );
+      } catch (err) {
+        console.log('ERRPR', err);
+      }
     }
     return {
       id: job.id,

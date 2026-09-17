@@ -5,6 +5,7 @@ import { EmailPayload } from '../payload/email.payload.js';
 import { PrismaService } from '../../db/db.service.js';
 import { EmailService } from '../../email/email.service.js';
 import { Logger, LoggerService } from '@nestjs/common';
+import { formatJobId } from '../util/index.js';
 
 @Processor(APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL)
 export class EmailWorker extends WorkerHost {
@@ -16,19 +17,37 @@ export class EmailWorker extends WorkerHost {
     super();
   }
   async process(job: Job<EmailPayload>): Promise<any> {
-    const jobId = job.id?.replace('job-', '') ?? '';
-    const { template, to } = job.data;
-    this.logger.log('Job Id:', jobId, 'Job payload:', job.data);
+    let jobId = job.id;
+    if (!jobId) {
+      return;
+    }
+    jobId = formatJobId(jobId);
     const _dbId = Number(jobId);
-    await this.prismaService.job.update({
+    const dbJob = await this.prismaService.job.findUnique({
       where: {
         id: _dbId,
-        OR: [{ status: 'PENDING' }, { status: 'FAILED' }],
-      },
-      data: {
-        status: 'PROCESSING',
       },
     });
+    if (!dbJob) {
+      return;
+    }
+    const { template, to } = job.data;
+    this.logger.log('Job Id:', jobId, 'Job payload:', job.data);
+
+    if (dbJob.status === 'COMPLETED') {
+      return;
+    }
+    if (dbJob.status !== 'PROCESSING') {
+      await this.prismaService.job.update({
+        where: {
+          id: _dbId,
+          OR: [{ status: 'PENDING' }, { status: 'FAILED' }],
+        },
+        data: {
+          status: 'PROCESSING',
+        },
+      });
+    }
     await this.emailService.sendEmail(to, template);
     await this.prismaService.job.update({
       where: {
@@ -50,10 +69,11 @@ export class EmailWorker extends WorkerHost {
     if (!job) {
       return;
     }
-    const jobId = job.id?.replace('job-', '');
+    let jobId = job.id;
     if (!jobId) {
       return;
     }
+    jobId = formatJobId(jobId);
     const maxAttempt = job.opts.attempts;
     const attemptsMade = job.attemptsMade;
     let retryAttemptLeft = false;
