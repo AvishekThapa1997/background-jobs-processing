@@ -27,20 +27,20 @@ export class JobService {
   async recoverPendingJobs() {
     try {
       this.logger.log('Recovering Pending Jobs');
-      const twelveHourAgo = new Date(Date.now() - 1 * 60 * 1000);
+      const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
       const jobs = await this.prismaService.job.findMany({
         where: {
           status: 'PENDING',
           createdAt: {
-            lte: twelveHourAgo,
+            lte: oneMinuteAgo,
           },
         },
       });
       if (jobs.length > 0) {
-        jobs.forEach((job) => {
+        for (const job of jobs) {
           this.logger.log(`Job recovery: ${job.id}`);
-          this.addJobToQueue(job, true);
-        });
+          await this.addJobToQueue(job, true);
+        }
       }
     } catch (err) {
       this.logger.error('Failed to recover pending jobs', err);
@@ -61,12 +61,6 @@ export class JobService {
     const jobDelay = 2 * 60 * 1000;
     const jobOptions: JobsOptions = {
       jobId,
-      delay: jobDelay, // delaying for 2 mins
-      attempts: job.maxReattempts,
-      backoff: {
-        type: 'fixed',
-        delay: 2000, // retry after every 2 seconds if fails
-      },
       deduplication: {
         id: jobId,
       },

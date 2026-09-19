@@ -1,1 +1,1 @@
-export const formatJobId = (jobId: string) => jobId.replace('#', '');
+export const formatJobId = (jobId: string) => Number(jobId.replace('#', ''));

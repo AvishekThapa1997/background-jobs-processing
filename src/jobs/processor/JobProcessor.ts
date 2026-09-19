@@ -23,11 +23,10 @@ export class JobProcessor extends WorkerHost {
     if (!jobId) {
       return;
     }
-    jobId = formatJobId(jobId);
-    const _dbId = Number(jobId);
+    const dbjobId = formatJobId(jobId);
     const dbJob = await this.prismaService.job.findUnique({
       where: {
-        id: _dbId,
+        id: dbjobId,
       },
     });
     if (!dbJob) {
@@ -36,22 +35,40 @@ export class JobProcessor extends WorkerHost {
     if (dbJob.status === 'COMPLETED') {
       return;
     }
-    if (dbJob.status !== 'PROCESSING') {
+    const worker = this.workerFactory.getWorker(dbJob.type as JobType);
+    await worker.execute(job);
+  }
+
+  @OnWorkerEvent('active')
+  async onActive(job: Job) {
+    try {
+      if (!job.id) {
+        return;
+      }
+      const dbJobId = formatJobId(job.id);
       await this.prismaService.job.update({
         where: {
-          id: _dbId,
+          id: dbJobId,
           OR: [{ status: 'PENDING' }, { status: 'FAILED' }],
         },
         data: {
           status: 'PROCESSING',
         },
       });
+    } catch (err) {
+      this.logger.error('Failed to mark job as processing :', err);
     }
-    const worker = this.workerFactory.getWorker(dbJob.type as JobType);
-    await worker.execute(job);
+  }
+
+  @OnWorkerEvent('completed')
+  async onComplete(job: Job) {
+    if (!job.id) {
+      throw new Error('Job is not available');
+    }
+    const jobId = formatJobId(job.id);
     await this.prismaService.job.update({
       where: {
-        id: _dbId,
+        id: jobId,
         status: 'PROCESSING',
       },
       data: {
@@ -59,6 +76,7 @@ export class JobProcessor extends WorkerHost {
       },
     });
   }
+
   @OnWorkerEvent('stalled')
   onStalled(jobId: string, prev: string) {
     this.logger.warn(`Job ${jobId} stalled. Previous state: ${prev}`);
@@ -77,7 +95,7 @@ export class JobProcessor extends WorkerHost {
     if (!jobId) {
       return;
     }
-    jobId = formatJobId(jobId);
+    const dbJobId = formatJobId(jobId);
     const maxAttempt = job.opts.attempts;
     const attemptsMade = job.attemptsMade;
     let retryAttemptLeft = false;
@@ -90,7 +108,7 @@ export class JobProcessor extends WorkerHost {
     this.logger.error('Job: ', jobId, ' failed', error, prev);
     await this.prismaService.job.update({
       where: {
-        id: Number(jobId),
+        id: dbJobId,
         status: 'PROCESSING',
       },
       data: {

@@ -1,6 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { EmailWorker } from './email.worker.js';
+import { Injectable } from '@nestjs/common';
 import { JobType } from '../constants/job.enum.js';
+import { EmailWorker } from './email.worker.js';
 import { IWorker } from './IWorker.js';
 import { MessageWorker } from './messager.worker.js';
 
