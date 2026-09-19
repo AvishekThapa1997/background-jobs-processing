@@ -59,6 +59,10 @@ export class EmailWorker extends WorkerHost {
       },
     });
   }
+  @OnWorkerEvent('stalled')
+  onStalled(jobId: string, prev: string) {
+    this.logger.warn(`Job ${jobId} stalled. Previous state: ${prev}`);
+  }
 
   @OnWorkerEvent('failed')
   async onFailed(

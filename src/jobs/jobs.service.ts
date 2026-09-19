@@ -4,10 +4,11 @@ import { JobsOptions, Queue } from 'bullmq';
 import { AppConfigService } from '../app-config/app-config.service.js';
 import { APP_CONSTANTS } from '../common/constants/app-constants.js';
 import { PrismaService } from '../db/db.service.js';
-import { Prisma } from '../generated/prisma/client.js';
+import { Job } from '../generated/prisma/client.js';
 import { JobStatus, JobType } from './constants/job.enum.js';
 import { CreateJobDto, JobDto } from './dto/job.dto.js';
 import { EmailPayload } from './payload/email.payload.js';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class JobService {
@@ -21,19 +22,40 @@ export class JobService {
     private readonly smsQueue: Queue,
   ) {}
 
-  async create(createJobDto: CreateJobDto<EmailPayload>): Promise<JobDto> {
-    const maxReattempts = await this.appConfigService.get(
-      APP_CONSTANTS.MAX_RETRY_ATTEMPTS,
-    );
-    const job = await this.prismaService.job.create({
-      data: {
-        type: createJobDto.type,
-        payload: {
-          ...createJobDto.payload,
+  @Cron(CronExpression.EVERY_5_MINUTES, {
+    timeZone: 'Asia/Kolkata',
+  })
+  async recoverPendingJobs() {
+    try {
+      this.logger.log('Recovering Pending Jobs');
+      const twelveHourAgo = new Date(Date.now() - 1 * 60 * 1000);
+      const jobs = await this.prismaService.job.findMany({
+        where: {
+          status: 'PENDING',
+          createdAt: {
+            lte: twelveHourAgo,
+          },
         },
-        maxReattempts: Number(maxReattempts),
-      },
-    });
+      });
+      if (jobs.length > 0) {
+        jobs.forEach((job) => {
+          this.logger.log(`Job recovery: ${job.id}`);
+          this.addJobToQueue(job, true);
+        });
+      }
+    } catch (err) {
+      this.logger.error('Failed to recover pending jobs', err);
+    }
+  }
+
+  private async addJobToQueue(job: Job, ignoreFailure: boolean = false) {
+    const isJobFailureEnabled = this.appConfigService.getEnv<boolean>(
+      APP_CONSTANTS.ENVIRONMENT.ENABLE_JOB_FAILURE,
+    );
+    if (isJobFailureEnabled && !ignoreFailure) {
+      this.logger.error('Failed to add job to queue: ', job.id);
+      return;
+    }
     const jobId = String('#' + job.id);
     const jobDelay = 2 * 60 * 1000;
     const jobOptions: JobsOptions = {
@@ -56,20 +78,28 @@ export class JobService {
     }
 
     if (queue) {
-      try {
-        const addedJob = await queue.add(
-          queueName,
-          createJobDto.payload,
-          jobOptions,
-        );
+      const addedJob = await queue.add(queueName, job.payload, jobOptions);
 
-        this.logger.log(
-          `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
-        );
-      } catch (err) {
-        console.log('ERRPR', err);
-      }
+      this.logger.log(
+        `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
+      );
     }
+  }
+
+  async create(createJobDto: CreateJobDto<EmailPayload>): Promise<JobDto> {
+    const maxReattempts = await this.appConfigService.get(
+      APP_CONSTANTS.MAX_RETRY_ATTEMPTS,
+    );
+    const job = await this.prismaService.job.create({
+      data: {
+        type: createJobDto.type,
+        payload: {
+          ...createJobDto.payload,
+        },
+        maxReattempts: Number(maxReattempts),
+      },
+    });
+    await this.addJobToQueue(job);
     return {
       id: job.id,
       status: JobStatus[job.status],

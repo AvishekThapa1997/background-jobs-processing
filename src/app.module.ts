@@ -5,9 +5,17 @@ import { AppConfigModule } from './app-config/app-config.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { EmailService } from './email/email.service.js';
 import { EmailModule } from './email/email.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
-  imports: [AppConfigModule, DbModule, JobsModule, QueueModule, EmailModule],
+  imports: [
+    AppConfigModule,
+    DbModule,
+    JobsModule,
+    QueueModule,
+    EmailModule,
+    ScheduleModule.forRoot(),
+  ],
   controllers: [],
   providers: [EmailService],
 })
