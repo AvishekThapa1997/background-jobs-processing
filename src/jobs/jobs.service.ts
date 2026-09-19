@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { JobsOptions, Queue } from 'bullmq';
 import { AppConfigService } from '../app-config/app-config.service.js';
 import { APP_CONSTANTS } from '../common/constants/app-constants.js';
@@ -16,10 +16,8 @@ export class JobService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly appConfigService: AppConfigService,
-    @InjectQueue(APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL)
-    private readonly emailQueue: Queue,
-    @InjectQueue(APP_CONSTANTS.QUEUE_NAME.SEND_SMS)
-    private readonly smsQueue: Queue,
+    @InjectQueue(APP_CONSTANTS.JOB_QUEUE)
+    private readonly queue: Queue,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES, {
@@ -50,9 +48,11 @@ export class JobService {
   }
 
   private async addJobToQueue(job: Job, ignoreFailure: boolean = false) {
-    const isJobFailureEnabled = this.appConfigService.getEnv<boolean>(
-      APP_CONSTANTS.ENVIRONMENT.ENABLE_JOB_FAILURE,
-    );
+    const isJobFailureEnabled =
+      this.appConfigService.getEnv(
+        APP_CONSTANTS.ENVIRONMENT.ENABLE_JOB_FAILURE,
+      ) === 'true';
+
     if (isJobFailureEnabled && !ignoreFailure) {
       this.logger.error('Failed to add job to queue: ', job.id);
       return;
@@ -71,19 +71,13 @@ export class JobService {
         id: jobId,
       },
     };
-    let queue: Queue | null = null;
-    let queueName = '';
-    if (job.type === JobType.SEND_SMS) {
-      queue = this.smsQueue;
-      queueName = APP_CONSTANTS.QUEUE_NAME.SEND_SMS;
-    } else if (job.type === JobType.SEND_EMAIL) {
-      queue = this.emailQueue;
-      queueName = APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL;
-    }
-    const existingQueueJob = await this.emailQueue.getJob(`#${job.id}`);
-    if (queue && !existingQueueJob) {
-      const addedJob = await queue.add(queueName, job.payload, jobOptions);
-
+    const existingQueueJob = await this.queue.getJob(`#${job.id}`);
+    if (!existingQueueJob) {
+      const addedJob = await this.queue.add(
+        APP_CONSTANTS.JOB_QUEUE,
+        job.payload,
+        jobOptions,
+      );
       this.logger.log(
         `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
       );

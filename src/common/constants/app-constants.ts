@@ -7,10 +7,7 @@ export const APP_CONSTANTS = {
     REDIS_PASSWORD: 'REDIS_PASSWORD',
     ENABLE_JOB_FAILURE: 'ENABLE_JOB_FAILURE',
   },
-  QUEUE_NAME: {
-    SEND_EMAIL: 'send_email',
-    SEND_SMS: 'send_sms',
-  } as const,
+  JOB_QUEUE: 'job-queue',
   ERROR_MESSAGES: {
     INTERNAL_SERVER_ERROR: 'Internal server error',
     JOB_NOT_FOUND: 'Job not found',

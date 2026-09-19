@@ -23,14 +23,9 @@ import { APP_CONSTANTS } from '../common/constants/app-constants.js';
         };
       },
     }),
-    BullModule.registerQueue(
-      {
-        name: APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL,
-      },
-      {
-        name: APP_CONSTANTS.QUEUE_NAME.SEND_SMS,
-      },
-    ),
+    BullModule.registerQueue({
+      name: APP_CONSTANTS.JOB_QUEUE,
+    }),
   ],
   exports: [BullModule],
 })

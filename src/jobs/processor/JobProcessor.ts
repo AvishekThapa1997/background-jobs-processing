@@ -4,15 +4,17 @@ import { Job } from 'bullmq';
 import { EmailPayload } from '../payload/email.payload.js';
 import { PrismaService } from '../../db/db.service.js';
 import { EmailService } from '../../email/email.service.js';
-import { Logger, LoggerService } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { formatJobId } from '../util/index.js';
+import { JobWorkerFactory } from '../worker/worker.factory.js';
+import { JobType } from '../constants/job.enum.js';
 
-@Processor(APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL)
-export class EmailWorker extends WorkerHost {
-  private logger: Logger = new Logger(EmailWorker.name);
+@Processor(APP_CONSTANTS.JOB_QUEUE)
+export class JobProcessor extends WorkerHost {
+  private logger: Logger = new Logger(JobProcessor.name);
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly emailService: EmailService,
+    private readonly workerFactory: JobWorkerFactory,
   ) {
     super();
   }
@@ -31,9 +33,6 @@ export class EmailWorker extends WorkerHost {
     if (!dbJob) {
       return;
     }
-    const { template, to } = job.data;
-    this.logger.log('Job Id:', jobId, 'Job payload:', job.data);
-
     if (dbJob.status === 'COMPLETED') {
       return;
     }
@@ -48,7 +47,8 @@ export class EmailWorker extends WorkerHost {
         },
       });
     }
-    await this.emailService.sendEmail(to, template);
+    const worker = this.workerFactory.getWorker(dbJob.type as JobType);
+    await worker.execute(job);
     await this.prismaService.job.update({
       where: {
         id: _dbId,

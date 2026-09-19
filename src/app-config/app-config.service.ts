@@ -9,8 +9,8 @@ export class AppConfigService {
     private readonly configService: ConfigService,
     private readonly prismaService: PrismaService,
   ) {}
-  getEnv<T>(key: string): T | undefined {
-    return this.configService.get<T>(key);
+  getEnv(key: string): string | undefined {
+    return this.configService.get(key);
   }
 
   async get(key: string): Promise<string> {
