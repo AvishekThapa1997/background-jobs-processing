@@ -24,6 +24,7 @@ export class JobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES, {
     timeZone: 'Asia/Kolkata',
+    disabled: process.env.DISABLE_SCHEDULER === 'true',
   })
   async recoverPendingJobs() {
     try {
