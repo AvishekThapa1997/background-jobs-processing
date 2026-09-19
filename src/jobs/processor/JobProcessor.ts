@@ -18,7 +18,7 @@ export class JobProcessor extends WorkerHost {
   ) {
     super();
   }
-  async process(job: Job<EmailPayload>): Promise<any> {
+  async process(job: Job): Promise<any> {
     let jobId = job.id;
     if (!jobId) {
       return;

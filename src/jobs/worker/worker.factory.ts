@@ -7,8 +7,8 @@ import { MessageWorker } from './messager.worker.js';
 @Injectable()
 export class JobWorkerFactory {
   constructor(
-    @Inject() private readonly emailWorker: EmailWorker,
-    @Inject() private readonly messageWorker: MessageWorker,
+    private readonly emailWorker: EmailWorker,
+    private readonly messageWorker: MessageWorker,
   ) {}
 
   getWorker(jobType: JobType): IWorker {
