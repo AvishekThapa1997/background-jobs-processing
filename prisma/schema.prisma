@@ -31,6 +31,8 @@ model Job {
   payload        Json
   reattempts     Int        @default(0)
   maxReattempts  Int        @map("max_reattempts")
+  failedReason   String?    @map("failed_reason")
+  lastProcessedOn DateTime? @map("last_processed_on")
 
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")

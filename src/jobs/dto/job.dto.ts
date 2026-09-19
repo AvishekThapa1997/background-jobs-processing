@@ -1,5 +1,5 @@
 import { PickType } from '@nestjs/mapped-types';
-import { IsEnum, IsNotEmpty, IsObject } from 'class-validator';
+import { IsEnum, IsObject } from 'class-validator';
 import { JobStatus, JobType } from '../constants/job.enum.js';
 
 export class JobDto {

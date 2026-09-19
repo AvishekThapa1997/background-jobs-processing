@@ -2,6 +2,17 @@ import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AppConfigService } from '../app-config/app-config.service.js';
 import { APP_CONSTANTS } from '../common/constants/app-constants.js';
+import type { DefaultJobOptions } from 'bullmq';
+
+const commonJobOptions: DefaultJobOptions = {
+  attempts: Number(process.env.JOB_MAX_REATTEMPTS),
+  removeOnComplete: true,
+  delay: 2000, // process job after atlese 2 sec
+  backoff: {
+    delay: 2000, // Retry job after every 2 sec
+    type: 'fixed',
+  },
+};
 
 @Module({
   imports: [
@@ -25,15 +36,12 @@ import { APP_CONSTANTS } from '../common/constants/app-constants.js';
     }),
     BullModule.registerQueue({
       name: APP_CONSTANTS.JOB_QUEUE,
-      defaultJobOptions: {
-        attempts: Number(process.env.JOB_MAX_REATTEMPTS),
-        removeOnComplete: true,
-        delay: 2000, // process job after atlese 2 sec
-        backoff: {
-          delay: 2000, // Retry job after every 2 sec
-          type: 'fixed',
-        },
-      },
+      defaultJobOptions: commonJobOptions,
+    }),
+
+    BullModule.registerQueue({
+      name: APP_CONSTANTS.JOB_DLQ,
+      defaultJobOptions: commonJobOptions,
     }),
   ],
   exports: [BullModule],

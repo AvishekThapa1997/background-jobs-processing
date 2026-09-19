@@ -9,6 +9,7 @@ import { JobStatus, JobType } from './constants/job.enum.js';
 import { CreateJobDto, JobDto } from './dto/job.dto.js';
 import { EmailPayload } from './payload/email.payload.js';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { JobPayload } from './types/index.js';
 
 @Injectable()
 export class JobService {
@@ -67,11 +68,16 @@ export class JobService {
     };
     const existingQueueJob = await this.queue.getJob(`#${job.id}`);
     if (!existingQueueJob) {
+      const jobPayload: JobPayload = {
+        type: job.type as JobType,
+        data: job.payload,
+      };
       const addedJob = await this.queue.add(
         APP_CONSTANTS.JOB_QUEUE,
-        job.payload,
+        jobPayload,
         jobOptions,
       );
+      addedJob.name;
       this.logger.log(
         `Job added ${addedJob.id} with delay of ${jobDelay} milliseconds`,
       );

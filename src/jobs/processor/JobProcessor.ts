@@ -1,12 +1,18 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import {
+  InjectQueue,
+  OnWorkerEvent,
+  Processor,
+  WorkerHost,
+} from '@nestjs/bullmq';
 import { APP_CONSTANTS } from '../../common/constants/app-constants.js';
-import { Job } from 'bullmq';
+import { Job, Queue } from 'bullmq';
 import { EmailPayload } from '../payload/email.payload.js';
 import { PrismaService } from '../../db/db.service.js';
 import { Logger } from '@nestjs/common';
 import { formatJobId } from '../util/index.js';
 import { JobWorkerFactory } from '../worker/worker.factory.js';
 import { JobType } from '../constants/job.enum.js';
+import { DLQJobPayload, JobPayload } from '../types/index.js';
 
 @Processor(APP_CONSTANTS.JOB_QUEUE)
 export class JobProcessor extends WorkerHost {
@@ -14,11 +20,13 @@ export class JobProcessor extends WorkerHost {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly workerFactory: JobWorkerFactory,
+    @InjectQueue(APP_CONSTANTS.JOB_DLQ)
+    private readonly jobDlq: Queue,
   ) {
     super();
   }
 
-  async process(job: Job): Promise<any> {
+  async process(job: Job<JobPayload>): Promise<any> {
     try {
       if (!job.id) {
         return;
@@ -35,7 +43,8 @@ export class JobProcessor extends WorkerHost {
       if (dbJob.status === 'COMPLETED') {
         return;
       }
-      const worker = this.workerFactory.getWorker(dbJob.type as JobType);
+      const type = job.data.type;
+      const worker = this.workerFactory.getWorker(type);
       await worker.execute(job);
     } catch (err) {
       this.logger.error(`Failed to process job ${job.id}`, err);
@@ -106,11 +115,7 @@ export class JobProcessor extends WorkerHost {
   }
 
   @OnWorkerEvent('failed')
-  async onFailed(
-    job: Job<EmailPayload> | undefined,
-    error: Error,
-    prev: string,
-  ) {
+  async onFailed(job: Job<JobPayload> | undefined, error: Error, prev: string) {
     if (!job || !job.id) {
       return;
     }
@@ -132,9 +137,26 @@ export class JobProcessor extends WorkerHost {
       });
       if (result.count > 0) {
         this.logger.log(`Job ${job.id} failed`, error);
+        const dlqJob: JobPayload<DLQJobPayload> = {
+          type: job.data.type,
+          data: {
+            data: job.data.data,
+            orginalJobId: job.id,
+            attempstMade: job.attemptsMade,
+            attempts: job.opts.attempts,
+            createAt: job.timestamp,
+            failedReason: job.failedReason,
+            lastProcessedOn: job.finishedOn,
+          },
+        };
+        this.jobDlq.add(APP_CONSTANTS.JOB_DLQ, dlqJob, {
+          deduplication: {
+            id: job.id,
+          },
+        });
       }
     } catch (err) {
-      this.logger.error(`Failed to mark job: ${jobId} as failed`);
+      this.logger.error(`Failed to mark job: ${jobId} as failed`, err);
     }
   }
 }

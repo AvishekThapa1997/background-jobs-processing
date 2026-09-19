@@ -8,6 +8,7 @@ export const APP_CONSTANTS = {
     ENABLE_JOB_FAILURE: 'ENABLE_JOB_FAILURE',
   },
   JOB_QUEUE: 'job-queue',
+  JOB_DLQ: 'job-dlq',
   ERROR_MESSAGES: {
     INTERNAL_SERVER_ERROR: 'Internal server error',
     JOB_NOT_FOUND: 'Job not found',
