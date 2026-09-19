@@ -67,6 +67,9 @@ export class JobService {
         type: 'fixed',
         delay: 2000, // retry after every 2 seconds if fails
       },
+      deduplication: {
+        id: jobId,
+      },
     };
     let queue: Queue | null = null;
     let queueName = '';
@@ -77,8 +80,8 @@ export class JobService {
       queue = this.emailQueue;
       queueName = APP_CONSTANTS.QUEUE_NAME.SEND_EMAIL;
     }
-
-    if (queue) {
+    const existingQueueJob = await this.emailQueue.getJob(`#${job.id}`);
+    if (queue && !existingQueueJob) {
       const addedJob = await queue.add(queueName, job.payload, jobOptions);
 
       this.logger.log(
